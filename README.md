@@ -28,7 +28,7 @@ You will need the following installed on your machine:
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli#install) (fully authenticated)
 - [Azure Functions Core Tools](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local?tabs=v4%2Cmacos%2Ccsharp%2Cportal%2Cbash#install-the-azure-functions-core-tools)
 
-Create the infrastucture by applying the Terraform configuration found in [this repository]() by running the following within the cloned repo:
+Create the infrastucture by applying the Terraform configuration found in [this repository](https://github.com/htr-volker/transcript-app-terraform) by running the following within the cloned repo:
 
 ```bash
 terraform apply
