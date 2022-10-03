@@ -1,7 +1,7 @@
 import json
 import logging
 import tempfile
-from os import getenv
+from os import getenv, listdir
 
 from moviepy.editor import VideoFileClip
 
