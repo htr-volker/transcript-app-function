@@ -2,6 +2,16 @@
 
 ## Contents
 
+- [Automated Video Transcription with Azure Functions](#automated-video-transcription-with-azure-functions)
+  - [Contents](#contents)
+  - [Overview](#overview)
+  - [Installation](#installation)
+    - [Prerequisites](#prerequisites)
+    - [Deployment](#deployment)
+    - [Triggering the Function](#triggering-the-function)
+  - [Limitations/Issues/Improvements](#limitationsissuesimprovements)
+  - [Acknowledgements](#acknowledgements)
+
 ## Overview
 
 ![Diagram showing an overview of the different services to create the app](./diagram.png)
@@ -27,6 +37,7 @@ You will need the following installed on your machine:
 - [Terraform](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local?tabs=v4%2Cmacos%2Ccsharp%2Cportal%2Cbash#install-the-azure-functions-core-tools)
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli#install) (fully authenticated)
 - [Azure Functions Core Tools](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local?tabs=v4%2Cmacos%2Ccsharp%2Cportal%2Cbash#install-the-azure-functions-core-tools)
+- If you are running Python 3.10 or later, [you may need to install `pyenv`](https://github.com/pyenv/pyenv#installation)
 
 Create the infrastucture by applying the Terraform configuration found in [this repository](https://github.com/htr-volker/transcript-app-terraform) by running the following within the cloned repo:
 
@@ -36,10 +47,17 @@ terraform apply
 
 ### Deployment
 
-Create a Python virtual environment:
+Create a Python virtual environment and activate it:
 
 ```bash
-python -m venv venv
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Azure Functions currently only supports Python versions <=3.9, so if you are running Python 3.10 or later you can install 3.9 in the virtual environment using `pyenv`:
+
+```bash
+pyenv install 3.9.13
 ```
 
 Install Python packages using:
@@ -59,15 +77,22 @@ Replacing `<APP_NAME>` with your function app's name. The Terraform configuratio
 Create an Event Grid Subscription which will notify the function of any new blob created in the "videos" container in the storage account provisioned by Terraform:
 
 ```bash
+resource_group_name=<RESOURCE_GROUP_NAME>
+function_app_name=<FUNCTION_APP_NAME>
+
+function_endpoint=$(az functionapp function show -g $resource_group_name -n $function_app_name --function-name TranscribeVideoTrigger -o json | jq .id -r)
+
 az eventgrid system-topic event-subscription create \
     --name VideoUploaded \
-    --resource-group transcript-app \
+    --resource-group $resource_group_name \
     --system-topic-name BlobEvents \
-    --endpoint $(az functionapp function show -g transcript-app -n transcript-app-func-app --function-name TranscribeVideoTrigger -o json | jq .id -r) \
+    --endpoint $function_endpoint \
     --endpoint-type azurefunction \
     --subject-begins-with "/blobServices/default/containers/videos" \
     --included-event-types "Microsoft.Storage.BlobCreated"
 ```
+
+Replacing `<RESOURCE_GROUP_NAME>` with the name of the resource group your services are provisioned in (default is `transcript-app`) and `<FUNCTION_APP_NAME>` with the name of the function app (default is `transcript-app-func-app`).
 
 ### Triggering the Function
 
@@ -75,9 +100,12 @@ Upload any video file to the blob storage container named "videos" under the sto
 
 Then, check the "transcripts" container. You should see a text file in the format: `YOUR_VIDEO_FILE.mp4_transcript.txt`. If you download it are navigate to the 'Edit' tab after clicking on the blob, you should see a transcript of the video's audio.
 
-## Limitations
+## Limitations/Issues/Improvements
 
-- The function will trigger when any blob is added, not just video files.
+- The function will trigger when any blob is added, not just video files. The function is not designed to handle any non-movie files.
+- Research into using the `moviepy` library to handle movie files implied that there's an upper limit to the length of video files that it can open. I've yet to test the function on any video longer than about 10 seconds.
+- Unsure what the storage capacity is for the Function's temporary storage, which may pose an issue for processing longer videos.
+- There is currently no form of testing being performed on this function – I'm unsure what kind of tests I can perform on this type of function, though!
 
 ## Acknowledgements
 
